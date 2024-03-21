@@ -1,0 +1,55 @@
+setwd("C:/Users/tbehr/Desktop/UU/WD/IVPF15_MethylExt")
+
+library(tidyverse)
+library(ggplot2)
+library(stringr)
+library(reshape2) 
+
+FILENAME <- 'IVPF15_ED_1_bismark_bt2_pe.M-bias.txt'
+COLNAMES <- c('position', 'count', 'methylated', '%methylation', 'coverage')
+
+mbias_data_raw <- read.table(FILENAME, sep = '\n', as.is = T)
+
+rawtext <- readLines(FILENAME)
+
+context_matches <- na.omit(str_match(rawtext,".+context"))[,1]
+
+contexts <- lapply(context_matches, function(x) substr(x, 1, 3))
+
+split_text <- split(rawtext, cumsum(!grepl('[^,\t]', rawtext)))
+
+# remove empty lines
+split_text <- lapply(split_text, function(x) x[nzchar(x)])
+
+# remove empty list elements
+split_data <- split_text[lengths(split_text)>0]
+
+methylation_data <- split_data %>% 
+  lapply(function(x) tail(x, -3) %>% 
+           strsplit('\t') %>% 
+           as.data.frame() %>% 
+           t() %>% 
+           type.convert(as.is = TRUE) %>% 
+           `rownames<-`(NULL) %>% 
+           `colnames<-`(COLNAMES) %>% 
+           as.data.frame()
+  )
+
+names(methylation_data) <- context_matches
+
+# add column to each that indicates context
+methylation_data[[1]]$context <- contexts[[1]]
+methylation_data[[2]]$context <- contexts[[2]]
+methylation_data[[3]]$context <- contexts[[3]]
+
+methylation_combined <- rbind(methylation_data[[1]], methylation_data[[2]], methylation_data[[3]])
+
+ggplot(data = methylation_combined) +
+  geom_line(aes(x = position, y = `%methylation`, group=context, colour=context)) +
+  scale_y_continuous(limits = c(0,100), sec.axis = sec_axis(~ . * max(methylation_combined$count)/100, name = 'count')) +
+  geom_line(aes(x=position, y=count*100/max(count), group=context, colour=context), linetype='dashed')
+
+  #geom_line(aes(x=position, y=count, group=context, colour=context))
+  
+
+
