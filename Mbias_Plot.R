@@ -1,4 +1,4 @@
-setwd("C:/Users/tbehr/Desktop/UU/WD/IVPF15_MethylExt")
+setwd("C:/Users/tbehr/Desktop/UU/WD/IVPF15_MethylExt_Ign10")
 
 library(tidyverse)
 library(ggplot2)
@@ -44,12 +44,23 @@ methylation_data[[3]]$context <- contexts[[3]]
 
 methylation_combined <- rbind(methylation_data[[1]], methylation_data[[2]], methylation_data[[3]])
 
-ggplot(data = methylation_combined) +
-  geom_line(aes(x = position, y = `%methylation`, group=context, colour=context)) +
-  scale_y_continuous(limits = c(0,100), sec.axis = sec_axis(~ . * max(methylation_combined$count)/100, name = 'count')) +
-  geom_line(aes(x=position, y=count*100/max(count), group=context, colour=context), linetype='dashed')
+# scaling the methylation counts and combining to the same column as percent methylation
+# This is allows the legend to be generated automatically
+methylation_percmeth_as_countscaled <- methylation_combined
+methylation_percmeth_as_countscaled$`%methylation` <- methylation_percmeth_as_countscaled$count / max(methylation_combined$count) * 100
+# add columns to ID values after being combined
+methylation_combined$measurement <- 'percentmethyl'
+methylation_percmeth_as_countscaled$measurement <- 'methylcount'
 
-  #geom_line(aes(x=position, y=count, group=context, colour=context))
-  
+methylation_combined_stacked <- rbind(methylation_combined, methylation_percmeth_as_countscaled)
+methylation_combined_stacked$measurement <- as.factor(methylation_combined_stacked$measurement)
+
+ggplot(data = methylation_combined_stacked) +
+  geom_line(aes(x = position, y = `%methylation`, group=interaction(context,measurement), colour=context, linetype=measurement)) +
+  scale_y_continuous(limits = c(0,100), sec.axis = sec_axis(~ . * max(methylation_combined$count)/100, name = 'Methylated Sites Count')) +
+  #geom_vline(xintercept = 10, linetype='dashed') +
+  ylab('Percent Methylation') + xlab('Position along read (bp)') +
+  labs(colour='Context', linetype='Value') +
+  scale_linetype_manual(labels = c('Methylated\nSites Count','Percent\nMethylation'), values = c('solid','dashed'))
 
 
