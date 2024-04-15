@@ -4,8 +4,8 @@ library('methylKit')
 library('ggplot2')
 
 file_list <- list(
-  './IVPF15_MethylExt_Ign10/bedGraph/IVPF15_bismark.cov.gz',
-  './IVPF11_MethylExt_bedGraph/bedGraph/IVPF11_T1D_1_bismark_bt2_pe.bismark.cov.gz'
+  './IVPF15_MethylExt_Paired/IVPF15_ED_1_bismark_bt2_pe.bismark.cov.gz',
+  './IVPF11_MethylExt_Paired/IVPF11_T1D_1_bismark_bt2_pe.bismark.cov.gz'
 )
 
 IVPF_obj <- methRead(file_list, sample.id=list('IVPF15','IVPF11'), assembly='UCD1.3', treatment=c(0,0), pipeline='bismarkCoverage')

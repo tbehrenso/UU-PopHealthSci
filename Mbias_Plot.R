@@ -5,16 +5,17 @@ library(ggplot2)
 library(stringr)
 library(reshape2) 
 
-FILENAME <- './IVPF11_MethylExt/IVPF11_T1D_1_bismark_bt2_pe.M-bias.txt'
+FILENAME <- './IVPF11_MethylExt_Paired/IVPF11_T1D_1_bismark_bt2_pe.M-bias.txt'
 COLNAMES <- c('position', 'count', 'methylated', '%methylation', 'coverage')
 
 mbias_data_raw <- read.table(FILENAME, sep = '\n', as.is = T)
 
 rawtext <- readLines(FILENAME)
 
-context_matches <- na.omit(str_match(rawtext,".+context"))[,1]
+context_matches <- na.omit(str_match(rawtext,".+context.+"))[,1]
 
-contexts <- lapply(context_matches, function(x) substr(x, 1, 3))
+#contexts <- lapply(context_matches, function(x) substr(x, 1, 3))
+contexts <- context_matches
 
 split_text <- split(rawtext, cumsum(!grepl('[^,\t]', rawtext)))
 
@@ -41,8 +42,19 @@ names(methylation_data) <- context_matches
 methylation_data[[1]]$context <- contexts[[1]]
 methylation_data[[2]]$context <- contexts[[2]]
 methylation_data[[3]]$context <- contexts[[3]]
+methylation_data[[4]]$context <- contexts[[4]]
+methylation_data[[5]]$context <- contexts[[5]]
+methylation_data[[6]]$context <- contexts[[6]]
 
-methylation_combined <- rbind(methylation_data[[1]], methylation_data[[2]], methylation_data[[3]])
+
+methylation_combined_R1 <- rbind(methylation_data[[1]], methylation_data[[2]], methylation_data[[3]])
+methylation_combined_R2 <- rbind(methylation_data[[4]], methylation_data[[5]], methylation_data[[6]])
+
+
+# choose if plotting forward or reverse read
+##### should make it not manual later #########################
+methylation_combined <- methylation_combined_R2
+
 
 # scaling the methylation counts and combining to the same column as percent methylation
 # This is allows the legend to be generated automatically
