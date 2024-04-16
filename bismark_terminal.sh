@@ -3,7 +3,7 @@
 
 
 # Methylation Extraction (includes bedGraph with scaffolds)
-./Bismark-0.22.3/bismark_methylation_extractor -p -o ./IVPF15_MethylExt_bedGraph --bedGraph --scaffolds --ignore 10 IVPF15_ED_1_bismark_bt2_pe.bam
+./Bismark-0.22.3/bismark_methylation_extractor -p -o ./IVPF15_MethylExt_bedGraph --bedGraph --scaffolds --ignore 10 --ignore_r2 10 IVPF15_ED_1_bismark_bt2_pe.bam
 
 
 # Only bedGraph (and only on CpG files)
