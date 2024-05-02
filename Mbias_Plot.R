@@ -5,8 +5,11 @@ library(ggplot2)
 library(stringr)
 library(reshape2) 
 
-FILENAME <- './IVPF11_MethylExt_Paired/IVPF11_T1D_1_bismark_bt2_pe.M-bias.txt'
+#FILENAME <- './IVPF15_Paired_IgnBoth10/IVPF15_ED_1_bismark_bt2_pe.M-bias.txt'
+FILENAME <- 'D:/MethylCall/VE29_T1D/VE29_T1D_1_bismark_bt2_pe.M-bias.txt'
 COLNAMES <- c('position', 'count', 'methylated', '%methylation', 'coverage')
+
+sample_id <- str_sub(str_match(FILENAME, '[/]\\w+\\d+_\\w+[/]'), 2, -2)
 
 mbias_data_raw <- read.table(FILENAME, sep = '\n', as.is = T)
 
@@ -73,7 +76,8 @@ ggplot(data = methylation_combined_stacked) +
   #geom_vline(xintercept = 10, linetype='dashed') +
   ylab('Percent Methylation') + xlab('Position along read (bp)') +
   labs(colour='Context', linetype='Value') +
-  scale_linetype_manual(labels = c('Methylated\nSites Count','Percent\nMethylation'), values = c('solid','dashed')) +
-  geom_vline(xintercept = 10, linetype='dashed')
+  scale_linetype_manual(labels = c('Methylated\nSites Count','Percent\nMethylation'), values = c('dashed','solid')) +
+  ggtitle(paste('M-Bias for', sample_id))
+  #geom_vline(xintercept = 10, linetype='dashed')
 
 

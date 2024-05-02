@@ -2,13 +2,21 @@ setwd('C:/Users/tbehr/Desktop/UU/WD')
 
 library('methylKit')
 library('ggplot2')
+library(stringr)
 
-file_list <- list(
-  './IVPF15_MethylExt_Paired/IVPF15_ED_1_bismark_bt2_pe.bismark.cov.gz',
-  './IVPF11_MethylExt_Paired/IVPF11_T1D_1_bismark_bt2_pe.bismark.cov.gz'
-)
+file_list <- as.list(list.files('./Outputs_Bismark/'))
 
-IVPF_obj <- methRead(file_list, sample.id=list('IVPF15','IVPF11'), assembly='UCD1.3', treatment=c(0,0), pipeline='bismarkCoverage')
+# extract sample IDs from file names, and make sure its a list of character vectors
+sample_ids <- file_list %>% 
+  lapply(str_match, '^[^\\W_]+_[^\\W_]+') %>% 
+  lapply(as.character)
+
+file_paths <- lapply(file_list, function(x) paste0('./Outputs_Bismark/', x))
+
+# create binary vector for treatment argument (in this case, in vivo (VE) is 0, in vitro cryo (IVP) is 1)
+treatment_binary <- as.numeric(str_detect(unlist(sample_ids), 'IVP'))
+
+IVPF_obj <- methRead(file_paths, sample.id=sample_ids, assembly='UCD1.3', treatment=treatment_binary, pipeline='bismarkCoverage')
 
 getMethylationStats(IVPF_obj[[1]], both.strands=F, plot=T)
 getMethylationStats(IVPF_obj[[1]], both.strands=F, plot=F)
