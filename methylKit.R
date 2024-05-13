@@ -40,6 +40,13 @@ treatment_binary <- as.numeric(str_detect(unlist(sample_ids), 'IVP'))
 
 mkit_obj <- methRead(file_paths, sample.id=sample_ids, assembly='UCD1.3', treatment=treatment_binary, pipeline='bismarkCoverage')
 
+### Convert accession_value to chrN to match with UCSC table for annotation
+chrom_alias <- read.csv("ncbi_dataset/bosTau9.chromAlias.txt", sep='\t')
+# replace in each file
+for(i in seq(1,length(file_list))){
+  mkit_obj[[i]]$chr <- chrom_alias$X..ucsc[match(mkit_obj[[i]]$chr, chrom_alias$refseq)]
+}
+
 # Coverage and Methylation Statistics Plots
 if(F){
   # Plot all MethylationStats Histograms with same axis (need to manually specify)
@@ -107,7 +114,18 @@ if(F){
 covariate_df <- data.frame(covariate = as.factor(sample_location))
 diff_methylation <- calculateDiffMeth(mkit_merged, overdispersion = 'MN')
 
-getMethylDiff(diff_methylation,difference=25,qvalue=0.05)
+diff_methylation_25p <- getMethylDiff(diff_methylation,difference=25,qvalue=0.05)
+
+
+# Gene Annotation
+
+refseq_features <- readTranscriptFeatures("ncbi_dataset/UCD1.2.gz")
+
+diff_methylation_annotated <- annotateWithGeneParts(as(diff_methylation_25p,"GRanges"),refseq_features)
+
+
+
+
 
 
 
