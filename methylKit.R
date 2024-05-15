@@ -6,7 +6,7 @@ library(stringr)
 library(gridExtra)
 library(genomation)
 
-file_list <- as.list(list.files('./Outputs_Bismark/'))
+file_list <- as.list(list.files('./Outputs_Coverage/'))
 
 # extract sample IDs from file names, and make sure its a list of character vectors
 sample_ids <- file_list %>% 
@@ -16,7 +16,7 @@ sample_ids <- file_list %>%
 # Define which samples to exclude
 ED_samples <- c("IVP10_ED", "IVP11_ED", "IVP14_ED", "IVP9_EC", "VE24_ED", "VE26_ED", "VE28_ED", "VE29_ED")
 T1D_samples <- c("IVP10_T1D", "IVP11_T1D", "IVP14_T1D", "IVP9_T1C", "VE24_T1D", "VE26_T1D", "VE28_T1D", "VE29_T1D")
-exclude_list <- c(ED_samples)
+exclude_list <- c(T1D_samples)
 
 # Find indeces in list to remove
 exclude_index <- which(sample_ids %in% exclude_list)
@@ -33,15 +33,25 @@ sample_location <- sample_ids %>%
   lapply(substr, 1, 1) %>% 
   unlist
 
-file_paths <- lapply(file_list, function(x) paste0('./Outputs_Bismark/', x))
+file_paths <- lapply(file_list, function(x) paste0('./Outputs_Coverage/', x))
 
 # create binary vector for treatment argument (in this case, in vivo (VE) is 0, in vitro cryo (IVP) is 1)
 treatment_binary <- as.numeric(str_detect(unlist(sample_ids), 'IVP'))
 
 mkit_obj <- methRead(file_paths, sample.id=sample_ids, assembly='UCD1.3', treatment=treatment_binary, pipeline='bismarkCoverage')
 
+# Create tiled objected to evaluate differential methylation over regions rather than bases (SLOW)
+if(F){
+  mkit_tiled <- tileMethylCounts(mkit_obj,win.size=1000,step.size=1000)
+  
+  # load tiled object if saved
+  load('RData_Saved/mkit_tiled_ED.RData')
+  # replace mkit_obj with tiled
+  mkit_obj <- mkit_tiled
+}
+
 ### Convert accession_value to chrN to match with UCSC table for annotation
-chrom_alias <- read.csv("ncbi_dataset/bosTau9.chromAlias.txt", sep='\t')
+chrom_alias <- read.csv("ref_dataset/bosTau9.chromAlias.txt", sep='\t')
 # replace in each file
 for(i in seq(1,length(file_list))){
   mkit_obj[[i]]$chr <- chrom_alias$X..ucsc[match(mkit_obj[[i]]$chr, chrom_alias$refseq)]
@@ -67,6 +77,7 @@ if(F){
   getCoverageStats(mkit_obj[[1]], both.strands=F, plot=T)
   getCoverageStats(mkit_obj[[1]], both.strands=F, plot=F)
 }
+
 
 # filter by coverage
 ## NOTE: never seems to be below 10. Has this filtering been done before?
@@ -114,21 +125,35 @@ if(F){
 covariate_df <- data.frame(covariate = as.factor(sample_location))
 diff_methylation <- calculateDiffMeth(mkit_merged, overdispersion = 'MN')
 
-diff_methylation_25p <- getMethylDiff(diff_methylation,difference=25,qvalue=0.05)
+diff_methylation_25p <- getMethylDiff(diff_methylation,difference=10,qvalue=0.05)
 
 
-# Gene Annotation
+#### Gene Annotation
+## Examine percentage of differentially methylated sites are in introns/exons/promoters/intergenic
+refseq_features <- readTranscriptFeatures("ref_dataset/UCD1.2_Genes.gz")
 
-refseq_features <- readTranscriptFeatures("ncbi_dataset/UCD1.2.gz")
+diff_meth_annotated <- annotateWithGeneParts(as(diff_methylation_25p,"GRanges"),refseq_features)
 
-diff_methylation_annotated <- annotateWithGeneParts(as(diff_methylation_25p,"GRanges"),refseq_features)
+# View the distance to the nearest Transcription Start Site
+# the target.row column in the output indicates the row number in the initial target set
+dist_tss <- getAssociationWithTSS(diff_meth_annotated)
 
+# get location of each CpG 
+getMembers(diff_meth_annotated)
 
+plotTargetAnnotation(diff_meth_annotated, main = "Differential Methylation Annotation")
 
+# Summarize methylation over specific regions (using original methylKit obj)
+promoters <- regionCounts(mkit_obj, refseq_features$promoters)
 
+## Examine percentage in CpG Islands
+refseq_cpgislands <- readFeatureFlank("ref_dataset/UCD1.2_CpG.gz")
 
+diff_meth_cpg <- annotateWithFeatureFlank(as(diff_methylation_25p,"GRanges"), refseq_cpgislands$features, refseq_cpgislands$flanks,
+                                    feature.name="CpGi",flank.name="shores")
 
+plotTargetAnnotation(diff_meth_cpg, col=c("green","gray","white"), main="differential methylation annotation")
 
-
-
+# get percentage of intron/exon/promoters that overlap with differentially methylated bases
+getFeatsWithTargetsStats(diff_meth_annotated,percentage=TRUE)
 
