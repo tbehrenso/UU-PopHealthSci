@@ -16,7 +16,7 @@ sample_ids <- file_list %>%
 # Define which samples to exclude
 ED_samples <- c("IVP10_ED", "IVP11_ED", "IVP14_ED", "IVP9_EC", "VE24_ED", "VE26_ED", "VE28_ED", "VE29_ED")
 T1D_samples <- c("IVP10_T1D", "IVP11_T1D", "IVP14_T1D", "IVP9_T1C", "VE24_T1D", "VE26_T1D", "VE28_T1D", "VE29_T1D")
-exclude_list <- c(T1D_samples)
+exclude_list <- c(ED_samples)
 
 # Find indeces in list to remove
 exclude_index <- which(sample_ids %in% exclude_list)
@@ -38,7 +38,8 @@ file_paths <- lapply(file_list, function(x) paste0('./Outputs_Coverage/', x))
 # create binary vector for treatment argument (in this case, in vivo (VE) is 0, in vitro cryo (IVP) is 1)
 treatment_binary <- as.numeric(str_detect(unlist(sample_ids), 'IVP'))
 
-mkit_obj <- methRead(file_paths, sample.id=sample_ids, assembly='UCD1.3', treatment=treatment_binary, pipeline='bismarkCoverage')
+# create methylKit object. (Note: by default, removes reads with coverage < 10)
+mkit_obj <- methRead(file_paths, header=F, sample.id=sample_ids, assembly='UCD1.3', treatment=treatment_binary, pipeline='bismarkCoverage')
 
 # Create tiled objected to evaluate differential methylation over regions rather than bases (SLOW)
 if(F){
@@ -80,7 +81,7 @@ if(F){
 
 
 # filter by coverage
-## NOTE: never seems to be below 10. Has this filtering been done before?
+## NOTE: never seems to be below 10. Low count filtering redundent, because already done when creating mkit_obj
 mkit_obj_filt <- filterByCoverage(mkit_obj, lo.count=10, hi.perc=99)
 
 # Normalization
@@ -89,6 +90,7 @@ mkit_obj_norm <- normalizeCoverage(mkit_obj_filt, method = "median")  # can also
 
 # Merge Data -> extracts sites common in all samples
 mkit_merged <- unite(mkit_obj_norm)
+#mkit_merged <- unite(mkit_obj_norm, min.per.group=as.integer(2))
 
 ## Further Filtering (remove sites with little variation)
 # get percent methylation matrix
