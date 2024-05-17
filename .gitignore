@@ -2,6 +2,8 @@
 **.pdf
 **.docx
 **.pptx
+**.gz
+**.RData
 
 **WD
 .Rproj.user
