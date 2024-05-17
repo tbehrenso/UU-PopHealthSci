@@ -26,12 +26,6 @@ if(length(exclude_list) > 0){
   sample_ids <- sample_ids[-exclude_index]
 }
 
-# Get sample type (E or T) for sample annotation for removing batch effects
-sample_location <- sample_ids %>% 
-  lapply(strsplit, '_') %>% 
-  lapply(function(x) x[[1]][[2]]) %>% 
-  lapply(substr, 1, 1) %>% 
-  unlist
 
 file_paths <- lapply(file_list, function(x) paste0('data/raw/Outputs_Coverage/', x))
 
@@ -50,6 +44,8 @@ if(F){
   # replace mkit_obj with tiled
   mkit_obj <- mkit_tiled
 }
+
+mkit_obj <- replace_chr_ids(mkit_obj)
 
 ### Convert accession_value to chrN to match with UCSC table for annotation
 chrom_alias <- read.csv('data/reference/bosTau9.chromAlias.txt', sep='\t')
