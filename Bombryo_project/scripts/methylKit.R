@@ -1,12 +1,12 @@
-setwd('C:/Users/tbehr/Desktop/UU/WD')
-
 library(methylKit)
 library(ggplot2)
 library(stringr)
 library(gridExtra)
 library(genomation)
 
-file_list <- as.list(list.files('./Outputs_Coverage/'))
+source('scripts/methylKit_functions.R')
+
+file_list <- as.list(list.files('data/raw/Outputs_Coverage/'))
 
 # extract sample IDs from file names, and make sure its a list of character vectors
 sample_ids <- file_list %>% 
@@ -33,7 +33,7 @@ sample_location <- sample_ids %>%
   lapply(substr, 1, 1) %>% 
   unlist
 
-file_paths <- lapply(file_list, function(x) paste0('./Outputs_Coverage/', x))
+file_paths <- lapply(file_list, function(x) paste0('data/raw/Outputs_Coverage/', x))
 
 # create binary vector for treatment argument (in this case, in vivo (VE) is 0, in vitro cryo (IVP) is 1)
 treatment_binary <- as.numeric(str_detect(unlist(sample_ids), 'IVP'))
@@ -46,13 +46,13 @@ if(F){
   mkit_tiled <- tileMethylCounts(mkit_obj,win.size=1000,step.size=1000)
   
   # load tiled object if saved
-  load('RData_Saved/mkit_tiled_ED.RData')
+  load('data/processed/mkit_tiled_ED.RData')
   # replace mkit_obj with tiled
   mkit_obj <- mkit_tiled
 }
 
 ### Convert accession_value to chrN to match with UCSC table for annotation
-chrom_alias <- read.csv("ref_dataset/bosTau9.chromAlias.txt", sep='\t')
+chrom_alias <- read.csv('data/reference/bosTau9.chromAlias.txt', sep='\t')
 # replace in each file
 for(i in seq(1,length(file_list))){
   mkit_obj[[i]]$chr <- chrom_alias$X..ucsc[match(mkit_obj[[i]]$chr, chrom_alias$refseq)]
@@ -132,7 +132,7 @@ diff_methylation_25p <- getMethylDiff(diff_methylation,difference=10,qvalue=0.1)
 
 #### Gene Annotation
 ## Examine percentage of differentially methylated sites are in introns/exons/promoters/intergenic
-refseq_features <- readTranscriptFeatures("ref_dataset/UCD1.2_Genes.gz")
+refseq_features <- readTranscriptFeatures("data/reference/UCD1.2_Genes.gz")
 
 diff_meth_annotated <- annotateWithGeneParts(as(diff_methylation_25p,"GRanges"),refseq_features)
 
@@ -149,7 +149,7 @@ plotTargetAnnotation(diff_meth_annotated, main = "Differential Methylation Annot
 promoters <- regionCounts(mkit_obj, refseq_features$promoters)
 
 ## Examine percentage in CpG Islands
-refseq_cpgislands <- readFeatureFlank("ref_dataset/UCD1.2_CpG.gz")
+refseq_cpgislands <- readFeatureFlank("data/reference/UCD1.2_CpG.gz")
 
 diff_meth_cpg <- annotateWithFeatureFlank(as(diff_methylation_25p,"GRanges"), refseq_cpgislands$features, refseq_cpgislands$flanks,
                                     feature.name="CpGi",flank.name="shores")
