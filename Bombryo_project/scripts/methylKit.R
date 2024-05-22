@@ -213,6 +213,10 @@ geneid_peptide_pred <- getBM(filters=c('refseq_peptide_predicted'),
 
 all_gene_ids <- rbind(geneid_mrna, geneid_mrna_pred, geneid_ncrna, geneid_ncrna_pred, geneid_peptide, geneid_peptide_pred)
 
+all_gene_ids_ordered <- sapply(refseq_feature_names, function(x) ifelse(x %in% all_gene_ids$refseq_mrna,
+                                                all_gene_ids$ensembl_gene_id[which(all_gene_ids$refseq_mrna==x)], 'NA'))
+
+all_known_features_geneid <- cbind(all_known_features, all_gene_ids_ordered)
 
 # output file with DMCs, adjacent feature, and details
 if(F){
@@ -222,7 +226,7 @@ if(F){
                             '_dif', METH_DIFF_PERC,
                             '_q', METH_DIFF_Q,
                             '.csv')
-  write.csv(all_known_features, output_filepath, row.names=F, quote=F)
+  write.csv(all_known_features_geneid, output_filepath, row.names=F, quote=F)
 }
 
 
