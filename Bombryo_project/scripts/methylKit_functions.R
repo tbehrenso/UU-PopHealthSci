@@ -18,12 +18,12 @@ get_sample_location <- function(sample.ids){
   return(sample_location)
 }
 
-# Replace chrIDs of a methylKit object from refseq to UCSC
+# Replace chrIDs of a methylRawKit object from refseq to UCSC
 replace_chr_ids <- function(obj){
   mkit_obj <- obj
-  ### Convert accession_value to chrN to match with UCSC table for annotation
+  # read in alias file
   chrom_alias <- read.csv('data/reference/bosTau9.chromAlias.txt', sep='\t')
-  # replace in each file
+  # replace in each sub-object
   for(i in seq(1,length(obj))){
     mkit_obj[[i]]$chr <- chrom_alias$X..ucsc[match(mkit_obj[[i]]$chr, chrom_alias$refseq)]
   }

@@ -4,6 +4,10 @@
 **.pptx
 **.gz
 **.RData
+**.xlsx
+**.png
+**.Rhistory
 
+**Bombryo_project/output
 **WD
 .Rproj.user
