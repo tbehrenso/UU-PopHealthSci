@@ -12,6 +12,10 @@ COVERAGE_HI_PERC <- 99.9
 METH_DIFF_PERC <- 10
 METH_DIFF_Q <- 0.1
 
+# -------------------------------------------------------
+#   Define and Extract Filepaths and Samples, 
+# -------------------------------------------------------
+
 file_list <- as.list(list.files('data/raw/Outputs_Coverage/'))
 
 # extract sample IDs from file names, and make sure its a list of character vectors
@@ -22,7 +26,7 @@ sample_ids <- file_list %>%
 # Define which samples to exclude
 ED_samples <- c('IVP10_ED', 'IVP11_ED', 'IVP14_ED', 'IVP9_EC', 'VE24_ED', 'VE26_ED', 'VE28_ED', 'VE29_ED')
 T1D_samples <- c('IVP10_T1D', 'IVP11_T1D', 'IVP14_T1D', 'IVP9_T1C', 'VE24_T1D', 'VE26_T1D', 'VE28_T1D', 'VE29_T1D')
-exclude_list <- c(T1D_samples, 'IVP9_EC')
+exclude_list <- c(ED_samples)
 
 # Find indeces in list to remove
 exclude_index <- which(sample_ids %in% exclude_list)
@@ -38,7 +42,11 @@ file_paths <- lapply(file_list, function(x) paste0('data/raw/Outputs_Coverage/',
 # create binary vector for treatment argument (in this case, in vivo (VE) is 0, in vitro cryo (IVP) is 1)
 treatment_binary <- as.numeric(str_detect(unlist(sample_ids), 'IVP'))
 
-# create methylKit object. (Note: by default, removes reads with coverage < 10)
+# -------------------------------------------------------
+#   Create and process methylRawList object
+# -------------------------------------------------------
+
+# create methylRawList object. (Note: by default, removes reads with coverage < 10)
 mkit_obj <- methRead(file_paths, header=F, sample.id=sample_ids, mincov = MINIMUM_COVERAGE,
                      assembly='UCD1.3', treatment=treatment_binary, pipeline='bismarkCoverage')
 
@@ -47,7 +55,7 @@ if(F){
   mkit_tiled <- tileMethylCounts(mkit_obj,win.size=1000,step.size=1000)
   
   # load tiled object if saved
-  load('data/processed/mkit_tiled_ED.RData')
+  load('data/processed/mkit_tiled_ED_mIVP9.RData')
   # replace mkit_obj with tiled
   mkit_obj <- mkit_tiled
 }
@@ -100,6 +108,10 @@ mkit_obj_filt <- filterByCoverage(mkit_obj, lo.count=MINIMUM_COVERAGE, hi.perc=C
 ## (if multiple samples)
 mkit_obj_norm <- normalizeCoverage(mkit_obj_filt, method = 'median')  # can also use 'mean' method. Should investigate differences
 
+# -------------------------------------------------------
+#   Create and examine merged methylBase object
+# -------------------------------------------------------
+
 # Merge Data -> extracts sites common in all samples
 mkit_merged <- unite(mkit_obj_norm)
 #mkit_merged <- unite(mkit_obj_norm, min.per.group=as.integer(2))
@@ -125,7 +137,7 @@ PCASamples(mkit_merged, screeplot = F, transpose = T)
 # Batch Effects
 if(F){
   # Batch Effects
-  sample_annotation <- data.frame(batch.id=c('a','a','B','a','a','a','a','a'))
+  sample_annotation <- data.frame(batch.id=c('a','a','a','B','a','a','a','a'))
   component_association <- assocComp(mkit_merged, sample_annotation)
   
   # remove components with association p-value <0.01
@@ -134,10 +146,13 @@ if(F){
   mkit_batched <- removeComp(mkit_merged, comp=associated_componenets)
 }
 
-#### Differential Methylation
-# create data frame with sample location as factor for covariate
+# -------------------------------------------------------
+#   Differential Methylation and Annotation
+# -------------------------------------------------------
 
+# create data frame with sample location as factor for covariate
 #covariate_df <- data.frame(covariate = as.factor(sample_location))
+
 diff_methylation <- calculateDiffMeth(mkit_merged, overdispersion = 'MN')
 
 diff_methylation_25p <- getMethylDiff(diff_methylation,difference=METH_DIFF_PERC,qvalue=METH_DIFF_Q)
@@ -173,7 +188,9 @@ island_members <- getMembers(diff_meth_cpg)
 plotTargetAnnotation(diff_meth_cpg, col=c('green','gray','white'), main='differential methylation annotation')
 
 # get percentage of intron/exon/promoters that overlap with differentially methylated bases
+getFeatsWithTargetsStats(diff_meth_annotated,percentage=F)
 getFeatsWithTargetsStats(diff_meth_cpg,percentage=F)
+
 
 # extract relevant info into one dataframe (only for sites on known chromosomes)
 known_chromosome <- substring(diff_methylation_25p$chr, 1, 5) != 'chrUn'
@@ -196,32 +213,44 @@ refseq_feature_names_XM <- refseq_feature_names[grepl('^XM', refseq_feature_name
 refseq_feature_names_XR <- refseq_feature_names[grepl('^XR', refseq_feature_names)]
 refseq_feature_names_XP <- refseq_feature_names[grepl('^XP', refseq_feature_names)]
 
-geneid_mrna <- getBM(filters=c('refseq_mrna'), attributes=c('refseq_mrna', 'ensembl_gene_id'),
-                     values=refseq_feature_names_NM, mart=mart)
-geneid_mrna_pred <- getBM(filters=c('refseq_mrna_predicted'), attributes=c('refseq_mrna_predicted', 'ensembl_gene_id'),
-                          values=refseq_feature_names_NM, mart=mart)
-geneid_ncrna <- getBM(filters=c('refseq_ncrna'), attributes=c('refseq_ncrna', 'ensembl_gene_id'),
-                      values=refseq_feature_names_NM, mart=mart)
-geneid_ncrna_pred <- getBM(filters=c('refseq_ncrna_predicted'),
-                           attributes=c('refseq_ncrna_predicted', 'ensembl_gene_id'),
-                           values=refseq_feature_names_NM, mart=mart)
-geneid_peptide <- getBM(filters=c('refseq_peptide'), attributes=c('refseq_peptide', 'ensembl_gene_id'),
-                        values=refseq_feature_names_NM, mart=mart)
-geneid_peptide_pred <- getBM(filters=c('refseq_peptide_predicted'),
-                             attributes=c('refseq_peptide_predicted', 'ensembl_gene_id'),
-                             values=refseq_feature_names_NM, mart=mart)
+geneid_mrna <- if(length(refseq_feature_names_NM) > 0){
+  getBM(filters=c('refseq_mrna'), attributes=c('refseq_mrna', 'ensembl_gene_id'), values=refseq_feature_names_NM, mart=mart)
+  }else {data.frame(matrix(NA, nrow = 0, ncol = 2))}
+geneid_mrna_pred <- if(length(refseq_feature_names_XM) > 0){
+  getBM(filters=c('refseq_mrna_predicted'), attributes=c('refseq_mrna_predicted', 'ensembl_gene_id'),values=refseq_feature_names_XM, mart=mart)
+  }else {data.frame(matrix(NA, nrow = 0, ncol = 2))}
+geneid_ncrna <- if(length(refseq_feature_names_NR) > 0){
+  getBM(filters=c('refseq_ncrna'), attributes=c('refseq_ncrna', 'ensembl_gene_id'),values=refseq_feature_names_NR, mart=mart)
+  }else {data.frame(matrix(NA, nrow = 0, ncol = 2))}
+geneid_ncrna_pred <- if(length(refseq_feature_names_XR) > 0){
+  getBM(filters=c('refseq_ncrna_predicted'),attributes=c('refseq_ncrna_predicted', 'ensembl_gene_id'),values=refseq_feature_names_XR, mart=mart)
+  }else {data.frame(matrix(NA, nrow = 0, ncol = 2))}
+geneid_peptide <- if(length(refseq_feature_names_NP) > 0){
+  getBM(filters=c('refseq_peptide'), attributes=c('refseq_peptide', 'ensembl_gene_id'),values=refseq_feature_names_NP, mart=mart)
+  }else {data.frame(matrix(NA, nrow = 0, ncol = 2))}
+geneid_peptide_pred <- if(length(refseq_feature_names_XP) > 0){
+  getBM(filters=c('refseq_peptide_predicted'),attributes=c('refseq_peptide_predicted', 'ensembl_gene_id'),values=refseq_feature_names_XP, mart=mart)
+  }else {data.frame(matrix(NA, nrow = 0, ncol = 2))}
 
-all_gene_ids <- rbind(geneid_mrna, geneid_mrna_pred, geneid_ncrna, geneid_ncrna_pred, geneid_peptide, geneid_peptide_pred)
+# change all column names to be the same
+geneid_list <- list(geneid_mrna, geneid_mrna_pred, geneid_ncrna, geneid_ncrna_pred, geneid_peptide, geneid_peptide_pred)
+geneid_list <- lapply(geneid_list, function(x){
+  colnames(x) <- c('refseq', 'ensembl_gene_id')
+  x})
 
-all_gene_ids_ordered <- sapply(refseq_feature_names, function(x) ifelse(x %in% all_gene_ids$refseq_mrna,
-                                                all_gene_ids$ensembl_gene_id[which(all_gene_ids$refseq_mrna==x)], 'NA'))
+# merge all gene ids with corresponding refseq accession
+all_gene_ids <- rbind(geneid_list[[1]],geneid_list[[2]],geneid_list[[3]],
+                      geneid_list[[4]],geneid_list[[5]],geneid_list[[6]])
+
+all_gene_ids_ordered <- sapply(refseq_feature_names, function(x) ifelse(x %in% all_gene_ids$refseq,
+                                                all_gene_ids$ensembl_gene_id[which(all_gene_ids$refseq==x)], 'NA'))
 
 all_known_features_geneid <- cbind(all_known_features, all_gene_ids_ordered)
 
 # output file with DMCs, adjacent feature, and details
 if(F){
   output_filepath <- paste0('output/dmclist_',
-                            'ED_tiled1k_mIVP9',           # <- REMEMBER to change this value, not set automatically
+                            'T1D',           # <- REMEMBER to change this value, not set automatically
                             '_mincov', MINIMUM_COVERAGE,
                             '_dif', METH_DIFF_PERC,
                             '_q', METH_DIFF_Q,
