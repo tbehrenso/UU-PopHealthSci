@@ -7,10 +7,17 @@ library(biomaRt)
 
 source('scripts/methylKit_functions.R')
 
+
+SAMPLE_LOC <- 'ED'         # should be either 'ED' or 'T1D'
+SAMPLE_EXCLUDE <- 'IVP9_EC'        # NA or name of ONE sample
+
+
 MINIMUM_COVERAGE <- 5
 COVERAGE_HI_PERC <- 99.9
 METH_DIFF_PERC <- 10
 METH_DIFF_Q <- 0.1
+MIN.PER.GROUP <- 2
+TILED <- F
 
 # -------------------------------------------------------
 #   Define and Extract Filepaths and Samples, 
@@ -26,7 +33,14 @@ sample_ids <- file_list %>%
 # Define which samples to exclude
 ED_samples <- c('IVP10_ED', 'IVP11_ED', 'IVP14_ED', 'IVP9_EC', 'VE24_ED', 'VE26_ED', 'VE28_ED', 'VE29_ED')
 T1D_samples <- c('IVP10_T1D', 'IVP11_T1D', 'IVP14_T1D', 'IVP9_T1C', 'VE24_T1D', 'VE26_T1D', 'VE28_T1D', 'VE29_T1D')
-exclude_list <- c(ED_samples)
+if(SAMPLE_LOC=='ED'){
+  exclude_list <- c(T1D_samples)
+} else if(SAMPLE_LOC=='T1D'){
+  exclude_list <- c(ED_samples)
+}
+if(!is.na(SAMPLE_EXCLUDE)){
+  exclude_list <- c(exclude_list, SAMPLE_EXCLUDE)
+}
 
 # Find indeces in list to remove
 exclude_index <- which(sample_ids %in% exclude_list)
@@ -56,6 +70,7 @@ if(F){
   
   # load tiled object if saved
   load('data/processed/mkit_tiled_ED_mIVP9.RData')
+  TILED <- T
   # replace mkit_obj with tiled
   mkit_obj <- mkit_tiled
 }
@@ -102,19 +117,22 @@ if(F){
 
 # filter by coverage
 ## NOTE: never seems to be below 10. Low count filtering redundent, because already done when creating mkit_obj
-mkit_obj_filt <- filterByCoverage(mkit_obj, lo.count=MINIMUM_COVERAGE, hi.perc=COVERAGE_HI_PERC)
+mkit_obj_norm <- filterByCoverage(mkit_obj, lo.count=MINIMUM_COVERAGE, hi.perc=COVERAGE_HI_PERC)
 
 # Normalization
 ## (if multiple samples)
-mkit_obj_norm <- normalizeCoverage(mkit_obj_filt, method = 'median')  # can also use 'mean' method. Should investigate differences
+mkit_obj_norm <- normalizeCoverage(mkit_obj_norm, method = 'median')  # can also use 'mean' method. Should investigate differences
 
 # -------------------------------------------------------
 #   Create and examine merged methylBase object
 # -------------------------------------------------------
 
 # Merge Data -> extracts sites common in all samples
-mkit_merged <- unite(mkit_obj_norm)
-#mkit_merged <- unite(mkit_obj_norm, min.per.group=as.integer(2))
+if(MIN.PER.GROUP==4){
+  mkit_merged <- unite(mkit_obj_norm)
+}else{
+  mkit_merged <- unite(mkit_obj_norm, min.per.group=as.integer(MIN.PER.GROUP))
+}
 
 ## Further Filtering (remove sites with little variation)
 # get percent methylation matrix
@@ -123,8 +141,8 @@ pm=percMethylation(mkit_merged)
 sds=matrixStats::rowSds(pm)
 # Visualize the distribution of the per-CpG standard deviation to determine a suitable cutoff
 hist(sds, breaks = 100)
-# keep only CpG with standard deviations larger than 2%
-mkit_merged <- mkit_merged[sds > 2]
+# keep only CpG with standard deviations larger than 2%. Keep NA for when using min.per.group argument
+mkit_merged <- mkit_merged[sds > 2 | is.na(sds)]
 
 
 # Correlation
@@ -250,12 +268,19 @@ all_known_features_geneid <- cbind(all_known_features, all_gene_ids_ordered)
 # output file with DMCs, adjacent feature, and details
 if(F){
   output_filepath <- paste0('output/dmclist_',
-                            'T1D',           # <- REMEMBER to change this value, not set automatically
+                            SAMPLE_LOC,
+                            ifelse(is.na(SAMPLE_EXCLUDE),'', paste0('_m',strsplit(SAMPLE_EXCLUDE, '_')[[1]])),           
+                            ifelse(TILED,'_tiled', ''),
+                            ifelse(MIN.PER.GROUP==4,'', paste0('_mpg',MIN.PER.GROUP)),
                             '_mincov', MINIMUM_COVERAGE,
                             '_dif', METH_DIFF_PERC,
                             '_q', METH_DIFF_Q,
                             '.csv')
-  write.csv(all_known_features_geneid, output_filepath, row.names=F, quote=F)
+  if(!file.exists(output_filepath)){
+    write.csv(all_known_features_geneid, output_filepath, row.names=F, quote=F)
+  }else{
+    print('Warning: Output file with that name already exists')
+  }
 }
 
 
