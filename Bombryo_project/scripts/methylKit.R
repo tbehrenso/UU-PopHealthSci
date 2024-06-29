@@ -8,15 +8,15 @@ library(biomaRt)
 source('scripts/methylKit_functions.R')
 
 
-SAMPLE_LOC <- 'ED'         # should be either 'ED' or 'T1D'
-SAMPLE_EXCLUDE <- 'IVP9_EC'        # NA or name of ONE sample
+SAMPLE_LOC <- 'T1D'         # should be either 'ED' or 'T1D'
+SAMPLE_EXCLUDE <- NA        # NA or name of ONE sample
 
 
 MINIMUM_COVERAGE <- 5
 COVERAGE_HI_PERC <- 99.9
 METH_DIFF_PERC <- 10
 METH_DIFF_Q <- 0.1
-MIN.PER.GROUP <- 2
+MIN.PER.GROUP <- 3
 TILED <- F
 
 # -------------------------------------------------------
@@ -31,8 +31,8 @@ sample_ids <- file_list %>%
   lapply(as.character)
 
 # Define which samples to exclude
-ED_samples <- c('IVP10_ED', 'IVP11_ED', 'IVP14_ED', 'IVP9_EC', 'VE24_ED', 'VE26_ED', 'VE28_ED', 'VE29_ED')
-T1D_samples <- c('IVP10_T1D', 'IVP11_T1D', 'IVP14_T1D', 'IVP9_T1C', 'VE24_T1D', 'VE26_T1D', 'VE28_T1D', 'VE29_T1D')
+ED_samples <- str_match(unlist(sample_ids), '.*E[D|C]')[!is.na(str_match(unlist(sample_ids), '.*E[D|C]'))]
+T1D_samples <- str_match(unlist(sample_ids), '.*T1[D|C]')[!is.na(str_match(unlist(sample_ids), '.*T1[D|C]'))]
 if(SAMPLE_LOC=='ED'){
   exclude_list <- c(T1D_samples)
 } else if(SAMPLE_LOC=='T1D'){
@@ -69,7 +69,7 @@ if(F){
   mkit_tiled <- tileMethylCounts(mkit_obj,win.size=1000,step.size=1000)
   
   # load tiled object if saved
-  load('data/processed/mkit_tiled_ED_mIVP9.RData')
+  load('data/processed/mkit_tiled_ED_mIVP9_etc.RData')
   TILED <- T
   # replace mkit_obj with tiled
   mkit_obj <- mkit_tiled
@@ -97,13 +97,14 @@ mkit_obj <- replace_chr_ids(mkit_obj)
 if(F){
   # Plot all MethylationStats Histograms with same axis (need to manually specify)
   for(i in seq(1,length(file_list))){
-    hist(getData(mkit_obj[[i]])$numCs / (getData(mkit_obj[[i]])$numTs + getData(mkit_obj[[i]])$numCs),
-         col = '#6495ed', main = sample_ids[[i]], ylim=c(0,4000000), xlab='% methylation per base')
+    hist(methylKit::getData(mkit_obj[[i]])$numCs / 
+           (methylKit::getData(mkit_obj[[i]])$numTs + methylKit::getData(mkit_obj[[i]])$numCs),
+         col = '#6495ed', main = sample_ids[[i]], xlab='% methylation per base')
   }
   
   # Plot all CoverageSats Histograms
   for(i in seq(1,length(file_list))){
-    hist(log10(getData(mkit_obj[[i]])$coverage),
+    hist(log10(methylKit::getData(mkit_obj[[i]])$coverage),
           col = 'darkgreen', main = sample_ids[[i]], xlab='log10 of read coverage per base')
   }
   
@@ -150,7 +151,7 @@ getCorrelation(mkit_merged,plot=F)
 # Cluster
 clusterSamples(mkit_merged, dist='correlation', method='ward.D', plot=TRUE)
 # PCA
-PCASamples(mkit_merged, screeplot = F, transpose = T)
+PCASamples(mkit_merged, screeplot = F, transpose = T, adj.lim = c(0.3,0.1))
 
 # Batch Effects
 if(F){
@@ -265,9 +266,26 @@ all_gene_ids_ordered <- sapply(refseq_feature_names, function(x) ifelse(x %in% a
 
 all_known_features_geneid <- cbind(all_known_features, all_gene_ids_ordered)
 
+
+### Volcano Plot
+if(F){
+  volcano_df <- data.frame(feature=all_known_features$feature.name, 
+                           qval=-log10(all_known_features$qvalue), 
+                           methdiff=all_known_features$meth.diff,
+                           diffexp=F)
+  volcano_df$diffexp <- volcano_df$qval > -log10(0.1) & (all_known_features$meth.diff > 10 | all_known_features$meth.diff < -10)
+  
+  
+  
+  ggplot(volcano_df, aes(x=methdiff, y=qval, col=diffexp)) + 
+    geom_point(size=0.01) +
+    xlab('Methylation Percent Difference') + ylab('-log10qval') +
+    theme_minimal()
+}
+
 # output file with DMCs, adjacent feature, and details
 if(F){
-  output_filepath <- paste0('output/dmclist_',
+  output_filepath <- paste0('output/AllAnalysis/dmclist_',
                             SAMPLE_LOC,
                             ifelse(is.na(SAMPLE_EXCLUDE),'', paste0('_m',strsplit(SAMPLE_EXCLUDE, '_')[[1]])),           
                             ifelse(TILED,'_tiled', ''),

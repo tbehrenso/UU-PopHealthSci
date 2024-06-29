@@ -1,12 +1,10 @@
-setwd("C:/Users/tbehr/Desktop/UU/WD")
-
 library(tidyverse)
 library(ggplot2)
 library(stringr)
 library(reshape2) 
 
 #FILENAME <- './IVPF15_Paired_IgnBoth10/IVPF15_ED_1_bismark_bt2_pe.M-bias.txt'
-FILENAME <- 'D:/MethylCall/VE29_T1D/VE29_T1D_1_bismark_bt2_pe.M-bias.txt'
+FILENAME <- 'data/raw/MBias/IVP10_T1D_NoIgn_1_bismark_bt2_pe.M-bias.txt'
 COLNAMES <- c('position', 'count', 'methylated', '%methylation', 'coverage')
 
 sample_id <- str_sub(str_match(FILENAME, '[/]\\w+\\d+_\\w+[/]'), 2, -2)
@@ -56,7 +54,7 @@ methylation_combined_R2 <- rbind(methylation_data[[4]], methylation_data[[5]], m
 
 # choose if plotting forward or reverse read
 ##### should make it not manual later #########################
-methylation_combined <- methylation_combined_R2
+methylation_combined <- methylation_combined_R1
 
 
 # scaling the methylation counts and combining to the same column as percent methylation
@@ -71,13 +69,15 @@ methylation_combined_stacked <- rbind(methylation_combined, methylation_percmeth
 methylation_combined_stacked$measurement <- as.factor(methylation_combined_stacked$measurement)
 
 ggplot(data = methylation_combined_stacked) +
-  geom_line(aes(x = position, y = `%methylation`, group=interaction(context,measurement), colour=context, linetype=measurement)) +
+  geom_line(aes(x = position, y = `%methylation`, group=interaction(context,measurement), colour=context, linetype=measurement), linewidth=1) +
   scale_y_continuous(limits = c(0,100), sec.axis = sec_axis(~ . * max(methylation_combined$count)/100, name = 'Methylated Sites Count')) +
   #geom_vline(xintercept = 10, linetype='dashed') +
   ylab('Percent Methylation') + xlab('Position along read (bp)') +
   labs(colour='Context', linetype='Value') +
   scale_linetype_manual(labels = c('Methylated\nSites Count','Percent\nMethylation'), values = c('dashed','solid')) +
-  ggtitle(paste('M-Bias for', sample_id))
-  #geom_vline(xintercept = 10, linetype='dashed')
+  scale_color_manual(values=c('#377eb8', '#4daf4a', '#e41a1c')) +
+  ggtitle(paste('M-Bias for', sample_id)) +
+  theme_classic(base_size = 20) +
+  geom_vline(xintercept = 10, linetype='dashed',linewidth=1)
 
 
