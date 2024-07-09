@@ -85,4 +85,13 @@ if(F){
   write.csv(TE_rnaseq_transposed,'data/miscellaneous/rnaseq_TE_mogcn.csv')
 }
 
-
+# comparing variances
+if(F){
+  IV_pm <- pm[,1:8]
+  VE_pm <- pm[,9:16]
+  
+  IV_var <- apply(IV_pm, 1, var, na.rm=T)
+  VE_var <- apply(VE_pm, 1, var, na.rm=T)
+  
+  t.test(IV_var, VE_var, paired=F)
+}

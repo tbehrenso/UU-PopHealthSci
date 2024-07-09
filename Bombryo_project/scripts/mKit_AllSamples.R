@@ -11,14 +11,14 @@ source('scripts/methylKit_functions.R')
 SAMPLE_LOC <- 'ED'         # should be either 'ED' or 'T1D'
 SAMPLE_EXCLUDE <- NA        # NA or name of ONE sample
 
-MINIMUM_COVERAGE <- 5
+MINIMUM_COVERAGE <- 10
 COVERAGE_HI_PERC <- 99.9
 METH_DIFF_PERC <- 10
 METH_DIFF_Q <- 0.1
-MIN.PER.GROUP <- NA    # integer or NA
+MIN.PER.GROUP <- 7    # integer or NA
 TILED <- T
 OVERDISPERSION_CORRECTION <- F
-MORPHOLOGY_BATCH_CORRECTION <- T
+MORPHOLOGY_BATCH_CORRECTION <- F
 BATCH_PVAL <- 0.01
 ONLY_MATCHING <- F
 
@@ -153,6 +153,7 @@ ggplot(pca_df, aes(x=PC1, y=PC2, col=morph, label=sapply(strsplit(row.names(pca_
   geom_point(size=3) + geom_text_repel() +
   scale_shape_manual(values=c(1, 16), labels=c('VE', 'IVP')) +
   scale_color_manual(values=c('#377eb8', '#e41a1c', '#4daf4a'))
+  #stat_ellipse()
 
 ### Batch Effects
 sample_annotation <- data.frame(batch.id=batch_ordered)
@@ -195,7 +196,7 @@ dist_tss <- getAssociationWithTSS(diff_meth_annotated)
 # get location of each CpG 
 gene_members <- getMembers(diff_meth_annotated)
 
-plotTargetAnnotation(diff_meth_annotated, main = 'Differential Methylation Annotation')
+plotTargetAnnotation(diff_meth_annotated, main = 'Differential Methylation Annotation', cex.legend = 0.7)
 
 # Summarize methylation over specific regions (using original methylKit obj)
 promoters <- regionCounts(mkit_obj, refseq_features$promoters)

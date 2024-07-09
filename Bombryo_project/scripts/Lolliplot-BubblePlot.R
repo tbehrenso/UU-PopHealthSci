@@ -1,6 +1,6 @@
 library(ggplot2)
 
-data<-read.csv2("enrichment_DownBM_graphCSV.csv") #it might be read.csv
+data<-read.csv2("C:/Users/tbehr/Desktop/enrichment_DownBM_graphCSV.csv") #it might be read.csv
 data$EnrichmentFDR<-as.numeric(data$EnrichmentFDR)
 data$logFDR<--log10(data$EnrichmentFDR)
 colnames(data)
@@ -25,16 +25,19 @@ ggplot(data, aes(x=Pathway, y=logFDR, colour=logFDR)) +
 
 dev.off()
 
-data<-read.csv("Selected_David.csv", header=TRUE)
+data<-read.csv("C:/Users/tbehr/Desktop/PLOTTING_TE_ALL_CLUSTERED.csv", header=TRUE)
 data$logFDR <- -log(data$FDR, 10)
 data <- data[!duplicated(data$Term), ]
 
-data$termsize <- rescale(data$logFDR, to = c(6, 7))
+data$termsize <- rescale(data$logFDR, to = c(68,70))
 data$Category <- factor(data$Category, levels=unique(data$Category))
 
-cols <- c("red","royalblue")
+cols <- c("royalblue",'green','yellow','purple')
+cols <- c("royalblue",'green')
+cols <- c('yellow','purple')
+cols <- c('red')
 
-pdf("BubblePlot.pdf",width=8, height=6)
+pdf("BubblePlot.pdf",width=7, height=4)
 require("ggrepel")
 ggplot(data, aes(Term, logFDR, fill = Category, size = Count))+
   labs(title = NULL, x = NULL, y = '-logFDR')+
