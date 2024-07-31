@@ -4,6 +4,7 @@ library(stringr)
 library(gridExtra)
 library(genomation)
 library(sva)
+library(VennDiagram)
 
 # Get sample type (E or T) for sample annotation for removing batch effects
 get_sample_location <- function(sample.ids){
@@ -95,3 +96,81 @@ if(F){
   
   t.test(IV_var, VE_var, paired=F)
 }
+
+# Quadrant Plot
+create_quadrant_plot <- function(){
+  dmclist <- read.csv('output/AllAnalysis/dmclist_ED_matching_tiled_noOC_morphbatch0.01_mincov10_dif10_q0.1.csv')
+  ED_conv <- read.csv('C:/Users/tbehr/Desktop/ED_matching_toEntrez.csv')
+  # create entrezid column
+  dmclist$feature.name <- sapply(strsplit(dmclist$feature.name, '\\.'), `[`, 1)
+  dmclist$entrezid <- sapply(dmclist$feature.name, function(x) 
+    ifelse(x %in% ED_conv$RefSeq, ED_conv$Entrez[ED_conv$RefSeq==x], NA))
+  dmclist <- dmclist[!is.na(dmclist$entrezid),]
+  
+  entrez_features_unique <- unique(dmclist$entrezid)
+  entrez_features_unique <- entrez_features_unique[!is.na(entrez_features_unique)]
+  
+  # create dataframe that contains relevant info for each entrezid
+  dmclist_unique_df <- data.frame(entrezid=entrez_features_unique, meth.diff=0, direction=NA)
+  for(i in 1:length(entrez_features_unique)){
+    entrezid <- entrez_features_unique[i]
+    dmclist_subset <- dmclist[dmclist$entrezid==entrezid,]
+    
+    if(dim(dmclist_subset)[1]==1){
+      dmclist_unique_df$meth.diff[i] <- dmclist_subset$meth.diff
+      dmclist_unique_df$direction[i] <- ifelse(dmclist_subset$meth.diff > 0, '+', '-')
+    } else {
+      dmclist_unique_df$meth.diff[i] <- mean(dmclist_subset$meth.diff)
+      dmclist_unique_df$direction[i] <- ifelse(all(dmclist_subset$meth.diff>0), '+', 
+                                               ifelse(all(dmclist_subset$meth.diff<0), '-', 'Mix'))
+    }
+  }
+  
+  # import DEG data
+  deglist <- read.csv('data/processed/D15_ED_AdjData.txt', sep='\t')
+  deglist$X <- sapply(strsplit(deglist$X, ':'), `[`, 2)
+  
+  venn.diagram(x=list(deglist$X, dmclist_entrez_df$entrezid), category.names=c('DEG','DMR'), filename='ED_DEG_DMR_Venn.png')
+  
+  # find common gene ids and extract
+  shared_ids <- intersect(deglist$X, dmclist_unique_df$entrezid)
+  combined_df <- data.frame(entrezid=shared_ids, foldchange=NA, methdiff=NA, direction=NA)
+  for(i in 1:length(shared_ids)){
+    id <- shared_ids[i]
+    combined_df$foldchange[i] <- mean(as.numeric(deglist[deglist$X==id, 9:17])) / mean(as.numeric(deglist[deglist$X==id, 2:8]))
+    combined_df$methdiff[i] <- dmclist_unique_df$meth.diff[dmclist_unique_df$entrezid==id]
+    combined_df$direction[i] <- dmclist_unique_df$direction[dmclist_unique_df$entrezid==id]
+  }
+  combined_df$logfc <- log(combined_df$foldchange)
+  
+  # filter out Inf and NaN values
+  combined_df <- combined_df[is.finite(combined_df$logfc),]
+  
+  combined_df$category <- ifelse(combined_df$logfc > 0 & combined_df$methdiff > 0, 'HyperM-UpReg',
+                                 ifelse(combined_df$logfc > 0 & combined_df$methdiff < 0, 'HypoM-UpReg',
+                                        ifelse(combined_df$logfc < 0 & combined_df$methdiff > 0, 'HyperM-DownReg',
+                                               ifelse(combined_df$logfc < 0 & combined_df$methdiff < 0, 'HypoM-DownReg',
+                                                      NA))))
+  
+  ggplot(combined_df, aes(x=methdiff, y=logfc, color=category)) +
+    geom_point()
+  
+}
+
+
+PLS_integration <- function(){
+  library(mixOmics)
+  library(data.table)
+  X <- liver.toxicity$gene
+  Y <- liver.toxicity$clinic
+  
+  ED_matching_methyl <- as.data.frame(
+    data.table::fread('data/processed/AA_Data/ED_matching_TILED_mincov5_comBatched_mogFormat.csv',header = T))
+  methyl_colnames_noaccession <- sapply(strsplit(colnames(ED_matching_methyl), '\\.'), `[`, 1)
+  methyl_refseq_unique <- unique(methyl_colnames_noaccession)[-1]
+  
+  pls.result <- pls(X, Y)
+  plotIndiv(pls.result)
+  plotVar(pls.result)
+  }
+
