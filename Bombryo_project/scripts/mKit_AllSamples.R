@@ -8,7 +8,7 @@ library(ggrepel)
 
 source('scripts/methylKit_functions.R')
 
-SAMPLE_LOC <- 'ED'         # should be either 'ED' or 'T1D'
+SAMPLE_LOC <- 'T1D'         # should be either 'ED' or 'T1D'
 SAMPLE_EXCLUDE <- NA        # NA or name of ONE sample
 
 MINIMUM_COVERAGE <- 10
@@ -177,7 +177,7 @@ covariate_df_sex <- data.frame(sex = as.factor(sex_ordered))
 
 
 diff_methylation <- calculateDiffMeth(mkit_batched, overdispersion = ifelse(OVERDISPERSION_CORRECTION, 'MN', 'none'),
-                                      covariates = covariate_df_sex)
+                                      covariates = covariate_df_both)
 
 diff_methylation_25p <- getMethylDiff(diff_methylation,difference=METH_DIFF_PERC,qvalue=METH_DIFF_Q)
 

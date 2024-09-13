@@ -99,7 +99,7 @@ if(F){
 
 # Quadrant Plot
 create_quadrant_plot <- function(){
-  dmclist <- read.csv('output/AllAnalysis/dmclist_ED_matching_tiled_noOC_morphbatch0.01_mincov10_dif10_q0.1.csv')
+  dmclist <- read.csv('output/AllAnalysis/dmclist_ED_All_tiled_mpg7_noOC_bothcovar_mincov10_dif10_q0.1.csv')
   ED_conv <- read.csv('C:/Users/tbehr/Desktop/ED_matching_toEntrez.csv')
   # create entrezid column
   dmclist$feature.name <- sapply(strsplit(dmclist$feature.name, '\\.'), `[`, 1)
@@ -172,5 +172,95 @@ PLS_integration <- function(){
   pls.result <- pls(X, Y)
   plotIndiv(pls.result)
   plotVar(pls.result)
-  }
+}
 
+# create venn diagram to find common features from moGCN output
+moGCN_output_comparison <- function(){
+  topn_A <- read.csv('C:/Users/tbehr/Desktop/UU/MoGCN/MoGCN/result/ED_Results_e1000/topn_omics_2.csv')
+  topn_B <- read.csv('C:/Users/tbehr/Desktop/UU/MoGCN/MoGCN/result/ED_Results_e1000/topn_omics_3.csv')
+  
+  # remove _x or _y
+  epoch1000_A <- sapply(strsplit(topn_A$epoch_1000, '_'), `[`, 1)
+  epoch1000_B <- sapply(strsplit(topn_B$epoch_1000, '_'), `[`, 1)
+  
+  venn.diagram(list(A=epoch1000_A, B=epoch1000_B), filename='mogcn_compAB.png')
+  venn.diagram(list(A=topn_B$epoch_10, B=topn_B$epoch_20), filename='mogcn_TE_20v1000.png')
+}
+
+belen_id_conversion <- function(){
+  library(mygene)
+  library(data.table)
+  
+  dataAll <- as.data.frame(data.table::fread("data/processed/AA_Data/ED_matching_TILED_merged_annotated_mincov5.csv",header = T))
+  
+  genes <- queryMany(dataAll$feature.name, scopes="refseq.rna", fields=c("symbol","name","entrezgene","type_of_gene"), species="9913")
+  geneList <- data.frame(genes)
+  dataAll <- cbind(dataAll,geneList); colnames(dataAll)
+  
+  dataEpigenome <- data.frame(row.names=gsub(" ","",paste(dataAll$chr,dataAll$start,sep="_")),
+                              Refseq=dataAll$feature.name, Entrez=dataAll$entrezgene,
+                              Symbol=dataAll$symbol, GeneName=dataAll$name,
+                              Region=dataAll$transcript.assoc,Island=dataAll$island.assoc,
+                              IVP10=dataAll$numCs1*100/dataAll$coverage1,
+                              IVP11=dataAll$numCs2*100/dataAll$coverage2,
+                              IVP14=dataAll$numCs3*100/dataAll$coverage3,
+                              IVPF10=dataAll$numCs4*100/dataAll$coverage4,
+                              IVPF15=dataAll$numCs5*100/dataAll$coverage5,
+                              VE24=dataAll$numCs6*100/dataAll$coverage6,
+                              VE26=dataAll$numCs7*100/dataAll$coverage7,
+                              VE28=dataAll$numCs8*100/dataAll$coverage8,
+                              VE29=dataAll$numCs9*100/dataAll$coverage9,
+                              VE4=dataAll$numCs10*100/dataAll$coverage10,
+                              VE5=dataAll$numCs11*100/dataAll$coverage11,
+                              VE6=dataAll$numCs12*100/dataAll$coverage12,
+                              VE3=dataAll$numCs13*100/dataAll$coverage13)
+  
+  
+  
+}
+
+
+# temp code for subsetting data 
+tempcode <- function(){
+
+  diff_methylation_25p <- diff_methylation[diff_methylation$chr=='chr10']
+  
+  all_known_features[all_known_features$start>53000000 & all_known_features$end<54000000,]
+  
+  
+}
+
+
+get_gene_ids <- function(){
+  library(mygene)
+  library(data.table)
+  
+  genes <- genes <- queryMany(all_known_features$feature.name, scopes="refseq.rna", fields=c("symbol","name","entrezgene","type_of_gene"), species="9913")
+  geneList <- data.frame(genes)
+  
+  all_known_features_geneid_belen <- cbind(all_known_features, geneList$symbol)
+  
+  all_known_features_geneid_belen[grepl('CDH3', all_known_features_geneid_belen$`geneList$symbol`),]
+}
+
+
+make_volcano_plot <- function(){
+  
+  
+}
+
+
+if(F){
+  # just testing converting DEG list from Entrez to gene symbol
+  library(biomaRt)
+  
+  deglist <- read.csv('data/processed/D15_ED_AdjData.txt', sep='\t')
+  
+  deg_entrez_ids <- sapply(strsplit(deglist[,1], ':'), `[`, 2)
+  
+  mart <- useDataset('btaurus_gene_ensembl', mart = useMart('ensembl'))
+  
+  deg_gene_symbols <- getBM(filters=c('entrezgene_id'), attributes=c('entrezgene_id', 'external_gene_name'), values=deg_entrez_ids, mart=mart)
+  
+  
+}
