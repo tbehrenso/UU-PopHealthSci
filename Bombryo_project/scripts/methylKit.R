@@ -8,7 +8,7 @@ library(biomaRt)
 source('scripts/methylKit_functions.R')
 
 
-SAMPLE_LOC <- 'T1D'         # should be either 'ED' or 'T1D'
+SAMPLE_LOC <- 'ED'         # should be either 'ED' or 'T1D'
 SAMPLE_EXCLUDE <- NA        # NA or name of ONE sample
 
 

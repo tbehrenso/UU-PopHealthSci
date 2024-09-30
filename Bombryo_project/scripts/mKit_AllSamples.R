@@ -8,10 +8,10 @@ library(ggrepel)
 
 source('scripts/methylKit_functions.R')
 
-SAMPLE_LOC <- 'T1D'         # should be either 'ED' or 'T1D'
+SAMPLE_LOC <- 'ED'         # should be either 'ED' or 'T1D'
 SAMPLE_EXCLUDE <- NA        # NA or name of ONE sample
 
-MINIMUM_COVERAGE <- 10
+MINIMUM_COVERAGE <- 5
 COVERAGE_HI_PERC <- 99.9
 METH_DIFF_PERC <- 10
 METH_DIFF_Q <- 0.1
@@ -142,27 +142,35 @@ clusterSamples(mkit_merged, dist='correlation', method='ward.D', plot=TRUE)
 # PCA
 PCASamples(mkit_merged, screeplot = F, transpose = T, adj.lim = c(0.3,0.1))
 
-# PCA Custom
-pm=percMethylation(mkit_merged)
-pca_stats <- prcomp(pm)
-pca_df <- data.frame(PC1=pca_stats$rotation[,1], PC2=pca_stats$rotation[,2], type=as.factor(treatment_binary),
-                     morph=batch_ordered, sex=sex_ordered)
-ggplot(pca_df, aes(x=PC1, y=PC2, col=type, label=sapply(strsplit(row.names(pca_df),'_'), `[`, 1), shape=morph)) + 
-  geom_point(size=3) + geom_text_repel()
-ggplot(pca_df, aes(x=PC1, y=PC2, col=morph, label=sapply(strsplit(row.names(pca_df),'_'), `[`, 1), shape=type)) + 
-  geom_point(size=3) + geom_text_repel() +
-  scale_shape_manual(values=c(1, 16), labels=c('VE', 'IVP')) +
-  scale_color_manual(values=c('#377eb8', '#e41a1c', '#4daf4a'))
-  #stat_ellipse()
+# can only do this part if not using the min.per.group argument
+if(is.na(MIN.PER.GROUP)){
+  
+  # PCA Custom
+  pm=percMethylation(mkit_merged)
+  pca_stats <- prcomp(pm)
+  pca_df <- data.frame(PC1=pca_stats$rotation[,1], PC2=pca_stats$rotation[,2], type=as.factor(treatment_binary),
+                       morph=batch_ordered, sex=sex_ordered)
+  ggplot(pca_df, aes(x=PC1, y=PC2, col=type, label=sapply(strsplit(row.names(pca_df),'_'), `[`, 1), shape=morph)) + 
+    geom_point(size=3) + geom_text_repel()
+  ggplot(pca_df, aes(x=PC1, y=PC2, col=morph, label=sapply(strsplit(row.names(pca_df),'_'), `[`, 1), shape=type)) + 
+    geom_point(size=3) + geom_text_repel() +
+    scale_shape_manual(values=c(1, 16), labels=c('VE', 'IVP')) +
+    scale_color_manual(values=c('#377eb8', '#e41a1c', '#4daf4a'))
+    #stat_ellipse()
+  
+  ### Batch Effects
+  sample_annotation <- data.frame(batch.id=batch_ordered)
+  component_association <- assocComp(mkit_merged, sample_annotation)
 
-### Batch Effects
-sample_annotation <- data.frame(batch.id=batch_ordered)
-component_association <- assocComp(mkit_merged, sample_annotation)
 
-# remove components with association p-value <0.01
-associated_componenets <- which(component_association$association[1,] < BATCH_PVAL)
-cat('Removing Principal Components:', associated_componenets)
-mkit_batched <- removeComp(mkit_merged, comp=associated_componenets)
+  # remove components with association p-value <0.01
+  associated_componenets <- which(component_association$association[1,] < BATCH_PVAL)
+  cat('Removing Principal Components:', associated_componenets)
+  mkit_batched <- removeComp(mkit_merged, comp=associated_componenets)
+} else {
+  # else if min.per.group is active, just continue with mkit_merged
+  mkit_batched <- mkit_merged
+}
 
 # Remove those mapped to chrUn before differential methylation calculation
 mkit_batched <- mkit_batched[substring(mkit_batched$chr, 1, 5) != 'chrUn']

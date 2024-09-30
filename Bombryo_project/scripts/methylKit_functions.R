@@ -235,7 +235,7 @@ get_gene_ids <- function(){
   library(mygene)
   library(data.table)
   
-  genes <- genes <- queryMany(all_known_features$feature.name, scopes="refseq.rna", fields=c("symbol","name","entrezgene","type_of_gene"), species="9913")
+  genes <- queryMany(all_known_features$feature.name, scopes="refseq.rna", fields=c("symbol","name","entrezgene","type_of_gene"), species="9913")
   geneList <- data.frame(genes)
   
   all_known_features_geneid_belen <- cbind(all_known_features, geneList$symbol)
@@ -253,14 +253,19 @@ make_volcano_plot <- function(){
 if(F){
   # just testing converting DEG list from Entrez to gene symbol
   library(biomaRt)
+  library(mygene)
   
   deglist <- read.csv('data/processed/D15_ED_AdjData.txt', sep='\t')
   
   deg_entrez_ids <- sapply(strsplit(deglist[,1], ':'), `[`, 2)
   
-  mart <- useDataset('btaurus_gene_ensembl', mart = useMart('ensembl'))
+  genes <- queryMany(deg_entrez_ids, scopes="entrezgene", fields=c("symbol","name","entrezgene","type_of_gene"), species="9913")
+  geneList <- data.frame(genes)
   
-  deg_gene_symbols <- getBM(filters=c('entrezgene_id'), attributes=c('entrezgene_id', 'external_gene_name'), values=deg_entrez_ids, mart=mart)
   
   
+  # mart <- useDataset('btaurus_gene_ensembl', mart = useMart('ensembl'))
+  # 
+  # deg_gene_symbols <- getBM(filters=c('entrezgene_id'), attributes=c('entrezgene_id', 'external_gene_name'), values=deg_entrez_ids, mart=mart)
+
 }
